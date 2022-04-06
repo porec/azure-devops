@@ -1,0 +1,89 @@
+# Docker
+# Build a Docker image
+# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+
+trigger:
+- main
+
+resources:
+- repo: self
+
+variables:
+  tag: '$(Build.BuildId)'
+  PCUSER: '<Access Key>'
+  PCPASS: '<Secret Key>'
+  PC_CONSOLE: '<URL to Console>'
+  REPO_ID: $(System.CollectionUri)$(System.TeamProject)/$(Build.Repository.Name)/$(Build.SourceBranchName)
+  PRE_BUILD_GIT_SCAN_FLAG: 'true'
+  PRISMA_API_URL: https://api.eu.prismacloud.io
+  BC_API_KEY: '<Access Key>::<Secret Key>'
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+
+- stage: PreBuild
+  displayName: Pre Build Dockerfile check
+  jobs:
+  - job: PreBuild
+    displayName: Pre Build Dockerfile check
+    steps:
+    - task: Bash@3
+      displayName: Run Prisma Cloud IaC for Docker file
+      inputs:
+        filePath: '$(Build.SourcesDirectory)/files/checkov_dockerfile.sh'
+      enabled: 'true'
+    - task: Bash@3
+      displayName: Install TwistCLI
+      inputs:
+        filePath: '$(Build.SourcesDirectory)/files/downloadTwistCLI.sh'
+      enabled: 'true'
+    - task: Bash@3
+      displayName: Prisma Cloud - Scan Code Repo
+      inputs:
+        filePath: '$(Build.SourcesDirectory)/files/scanGitRepo.sh'
+      enabled: 'true'
+
+- stage: Build
+  displayName: Build, Scan and Push image
+  jobs:
+  - job: Build
+    displayName: Build, Scan and Push image
+    steps:
+    - task: Docker@2
+      displayName: Build an image
+      inputs:
+        repository: evilcorp.azurecr.io/$(Build.Repository.Name)
+        command: build
+        dockerfile: '$(Build.SourcesDirectory)/Dockerfile'
+        tags: |
+          $(tag)
+    - task: prisma-cloud-compute-scan@3
+      inputs:
+        scanType: 'images'
+        twistlockService: 'pcc'
+        artifact: 'evilcorp.azurecr.io/$(Build.Repository.Name):$(tag)'
+    - task: Docker@2
+      displayName: Push image to the Registry
+      inputs:
+        containerRegistry: 'evilcorp'
+        repository: $(Build.Repository.Name)
+        command: 'push'
+
+- stage: PreDeploy
+  displayName: Pre Deploy yaml file check
+  jobs:
+  - job: PreDeploy
+    displayName: Pre Deploy yaml file check
+    steps:
+    - task: Bash@3
+      displayName: Infrastructure Deployment checks
+      inputs:
+        filePath: '$(Build.SourcesDirectory)/files/checkov_infra.sh'
+      enabled: 'true'
+    - task: Bash@3
+      displayName: Run Prisma Cloud IaC for deployment file
+      inputs:
+        filePath: '$(Build.SourcesDirectory)/files/checkov_deployment.sh'
+      enabled: 'true'
