@@ -24,6 +24,6 @@ jobs:
         soft_fail: true
 #        quiet: false
         download_external_modules: true
-        output_format: cli
+#        output_format: cli
         framework: terraform
         directory: .
