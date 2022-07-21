@@ -25,5 +25,5 @@ jobs:
 #        quiet: false
         download_external_modules: true
 #        output_format: cli
-        framework: terraform
+#        framework: terraform
         directory: .
