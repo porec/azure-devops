@@ -23,7 +23,7 @@ jobs:
         api-key: ${{ secrets.BC_API_KEY }}
         soft_fail: true
 #        quiet: false
-        download_external_modules: true
+#        download_external_modules: true
 #        output_format: cli
 #        framework: terraform
         directory: .
